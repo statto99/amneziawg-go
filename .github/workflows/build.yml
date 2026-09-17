@@ -1,0 +1,275 @@
+name: Build AmneziaWG + Tools
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+
+  # ============================================================
+  # Debian 9 AMD64
+  # ============================================================
+  debian9-amd64:
+    name: Debian 9 AMD64
+    runs-on: ubuntu-latest
+    container:
+      image: debian:stretch
+
+    steps:
+      - name: Fix Debian 9 repositories
+        run: |
+          cat > /etc/apt/sources.list <<'EOF'
+          deb http://archive.debian.org/debian stretch main
+          deb http://archive.debian.org/debian-security stretch/updates main
+          EOF
+
+          cat > /etc/apt/apt.conf.d/99archive <<'EOF'
+          Acquire::Check-Valid-Until "false";
+          Acquire::AllowInsecureRepositories "true";
+          EOF
+
+          apt-get update
+
+      - name: Install dependencies
+        run: |
+          apt-get install -y \
+            ca-certificates \
+            curl \
+            git \
+            build-essential
+
+      - name: Install Go
+        run: |
+          curl -fsSL https://go.dev/dl/go1.25.7.linux-amd64.tar.gz \
+            -o /tmp/go.tar.gz
+          rm -rf /usr/local/go
+          tar -C /usr/local -xzf /tmp/go.tar.gz
+          /usr/local/go/bin/go version
+
+      - name: Checkout amneziawg-go
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build amneziawg-go
+        env:
+          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+          GOAMD64: v1
+          GOFLAGS: "-buildvcs=false"
+        run: |
+          go mod download
+          mkdir -p build/debian9-amd64
+
+          go build \
+            -buildvcs=false \
+            -trimpath \
+            -ldflags="-s -w" \
+            -o build/debian9-amd64/amneziawg-go .
+
+      - name: Build amneziawg-tools
+        run: |
+          git clone --depth 1 \
+            https://github.com/amnezia-vpn/amneziawg-tools.git \
+            /tmp/amneziawg-tools
+
+          cd /tmp/amneziawg-tools/src
+          make
+
+          cp wg "$GITHUB_WORKSPACE/build/debian9-amd64/awg"
+          cp wg-quick/linux.bash \
+            "$GITHUB_WORKSPACE/build/debian9-amd64/awg-quick"
+
+          chmod +x "$GITHUB_WORKSPACE/build/debian9-amd64/"*
+
+      - name: Show results
+        run: |
+          ls -lh build/debian9-amd64/
+          file build/debian9-amd64/*
+
+      - name: Upload Debian 9 AMD64
+        uses: actions/upload-artifact@v4
+        with:
+          name: amneziawg-debian9-amd64
+          path: build/debian9-amd64/
+
+
+  # ============================================================
+  # Debian 10 AMD64
+  # ============================================================
+  debian10-amd64:
+    name: Debian 10 AMD64
+    runs-on: ubuntu-latest
+    container:
+      image: debian:buster
+
+    steps:
+      - name: Fix Debian 10 repositories
+        run: |
+          cat > /etc/apt/sources.list <<'EOF'
+          deb http://archive.debian.org/debian buster main contrib non-free
+          deb http://archive.debian.org/debian-security buster/updates main contrib non-free
+          EOF
+
+          cat > /etc/apt/apt.conf.d/99archive <<'EOF'
+          Acquire::Check-Valid-Until "false";
+          Acquire::AllowInsecureRepositories "true";
+          EOF
+
+          apt-get update
+
+      - name: Install dependencies
+        run: |
+          apt-get install -y \
+            ca-certificates \
+            curl \
+            git \
+            build-essential
+
+      - name: Install Go
+        run: |
+          curl -fsSL https://go.dev/dl/go1.25.7.linux-amd64.tar.gz \
+            -o /tmp/go.tar.gz
+          rm -rf /usr/local/go
+          tar -C /usr/local -xzf /tmp/go.tar.gz
+          /usr/local/go/bin/go version
+
+      - name: Checkout amneziawg-go
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build amneziawg-go
+        env:
+          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: amd64
+          GOAMD64: v1
+          GOFLAGS: "-buildvcs=false"
+        run: |
+          go mod download
+          mkdir -p build/debian10-amd64
+
+          go build \
+            -buildvcs=false \
+            -trimpath \
+            -ldflags="-s -w" \
+            -o build/debian10-amd64/amneziawg-go .
+
+      - name: Build amneziawg-tools
+        run: |
+          git clone --depth 1 \
+            https://github.com/amnezia-vpn/amneziawg-tools.git \
+            /tmp/amneziawg-tools
+
+          cd /tmp/amneziawg-tools/src
+          make
+
+          cp wg "$GITHUB_WORKSPACE/build/debian10-amd64/awg"
+          cp wg-quick/linux.bash \
+            "$GITHUB_WORKSPACE/build/debian10-amd64/awg-quick"
+
+          chmod +x "$GITHUB_WORKSPACE/build/debian10-amd64/"*
+
+      - name: Show results
+        run: |
+          ls -lh build/debian10-amd64/
+          file build/debian10-amd64/*
+
+      - name: Upload Debian 10 AMD64
+        uses: actions/upload-artifact@v4
+        with:
+          name: amneziawg-debian10-amd64
+          path: build/debian10-amd64/
+
+
+  # ============================================================
+  # Debian 12 ARM64 / AArch64
+  # ============================================================
+  debian12-aarch64:
+    name: Debian 12 AArch64
+    runs-on: ubuntu-latest
+    container:
+      image: debian:bookworm
+
+    steps:
+      - name: Install dependencies
+        run: |
+          apt-get update
+          apt-get install -y \
+            ca-certificates \
+            curl \
+            git \
+            build-essential \
+            gcc-aarch64-linux-gnu
+
+      - name: Install Go
+        run: |
+          curl -fsSL https://go.dev/dl/go1.25.7.linux-amd64.tar.gz \
+            -o /tmp/go.tar.gz
+          rm -rf /usr/local/go
+          tar -C /usr/local -xzf /tmp/go.tar.gz
+          /usr/local/go/bin/go version
+
+      - name: Checkout amneziawg-go
+        uses: actions/checkout@v4
+
+      - name: Configure Git
+        run: |
+          git config --system --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Build amneziawg-go
+        env:
+          PATH: /usr/local/go/bin:/usr/local/bin:/usr/bin:/bin
+          CGO_ENABLED: "0"
+          GOOS: linux
+          GOARCH: arm64
+          GOFLAGS: "-buildvcs=false"
+        run: |
+          go mod download
+          mkdir -p build/debian12-aarch64
+
+          go build \
+            -buildvcs=false \
+            -trimpath \
+            -ldflags="-s -w" \
+            -o build/debian12-aarch64/amneziawg-go .
+
+      - name: Build ARM64 amneziawg-tools
+        run: |
+          git clone --depth 1 \
+            https://github.com/amnezia-vpn/amneziawg-tools.git \
+            /tmp/amneziawg-tools
+
+          cd /tmp/amneziawg-tools/src
+
+          make \
+            CC=aarch64-linux-gnu-gcc
+
+          cp wg \
+            "$GITHUB_WORKSPACE/build/debian12-aarch64/awg"
+
+          cp wg-quick/linux.bash \
+            "$GITHUB_WORKSPACE/build/debian12-aarch64/awg-quick"
+
+          chmod +x "$GITHUB_WORKSPACE/build/debian12-aarch64/"*
+
+      - name: Verify ARM64 binaries
+        run: |
+          ls -lh build/debian12-aarch64/
+          file build/debian12-aarch64/*
+
+      - name: Upload Debian 12 AArch64
+        uses: actions/upload-artifact@v4
+        with:
+          name: amneziawg-debian12-aarch64
+          path: build/debian12-aarch64/
